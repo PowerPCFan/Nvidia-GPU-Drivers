@@ -1,1 +1,1 @@
-https://example.com/this/link/should/be/changed/when/the/github/action/runs
+https://us.download.nvidia.com/Windows/576.02/576.02-desktop-win10-win11-64bit-international-dch-whql.exe
