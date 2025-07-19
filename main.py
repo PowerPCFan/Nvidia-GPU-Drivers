@@ -13,8 +13,9 @@ from PyQt6.QtGui import QFont
 
 RESULTS = "5"
 
+DIMENSIONS = (1280, 720)
+
 class DriverCard(QFrame):
-    """Individual driver card widget"""
     driver_selected = pyqtSignal(dict)
     
     def __init__(self, driver_data, driver_number, total_drivers):
@@ -37,7 +38,10 @@ class DriverCard(QFrame):
         # Header with driver number and name
         header_layout = QHBoxLayout()
         
-        driver_num_label = QLabel(f"Driver {driver_number} of {total_drivers}")
+        name = urllib.parse.unquote(self.driver_info.get('Name', 'N/A'))
+        version = self.driver_info.get('Version', 'N/A')
+        
+        driver_num_label = QLabel(f"[{driver_number}/{total_drivers}] {name} version {version}")
         driver_num_label.setFont(QFont(FONT, 10, QFont.Weight.Bold))
         header_layout.addWidget(driver_num_label)
         
@@ -69,9 +73,6 @@ class DriverCard(QFrame):
         # Driver details
         details_layout = QGridLayout()
         
-        # Parse driver info similar to CLI version
-        name = urllib.parse.unquote(self.driver_info.get('Name', 'N/A'))
-        version = self.driver_info.get('Version', 'N/A')
         display_version = self.driver_info.get('DisplayVersion', 'N/A')
         release_date = self.driver_info.get('ReleaseDateTime', 'N/A')
         file_size = self.driver_info.get('DownloadURLFileSize', 'N/A')
@@ -178,7 +179,8 @@ class NvidiaDriverLookupGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("NVIDIA Driver Lookup")
-        self.setGeometry(100, 100, 1400, 900)
+        # self.setGeometry(100, 100, 1400, 900)
+        self.setGeometry(100, 100, *DIMENSIONS)
         
         # Data storage
         self.product_families = []
@@ -278,7 +280,7 @@ class NvidiaDriverLookupGUI(QMainWindow):
         left_layout.addWidget(self.progress_bar)
         
         # Status label
-        self.status_label = QLabel("Loading initial data...")
+        self.status_label = QLabel("")
         left_layout.addWidget(self.status_label)
         
         # Add stretch to push everything to top
@@ -343,18 +345,18 @@ class NvidiaDriverLookupGUI(QMainWindow):
         self.update_search_button_state()
     
     def update_search_button_state(self):
-        """Update search button state whenever any selection changes"""
         self.search_button.setEnabled(self.can_search())
     
     def can_search(self):
-        return (self.family_combo.currentData() is not None and
-                self.series_combo.currentData() is not None and
-                self.product_combo.currentData() is not None and
-                self.os_combo.currentData() is not None and
-                self.language_combo.currentData() is not None)
-    
+        return (
+            self.family_combo.currentData() is not None and
+            self.series_combo.currentData() is not None and
+            self.product_combo.currentData() is not None and
+            self.os_combo.currentData() is not None and
+            self.language_combo.currentData() is not None
+        )
+
     def load_initial_data(self):
-        self.show_loading("Loading initial data...")
         self.worker = APIWorker("menu")
         self.worker.finished.connect(self.on_initial_data_loaded)
         self.worker.error.connect(self.on_api_error)
@@ -371,7 +373,6 @@ class NvidiaDriverLookupGUI(QMainWindow):
             self.populate_combo(self.os_combo, self.os_options)
             self.populate_combo(self.language_combo, self.language_options)
             
-            self.status_label.setText(f"Loaded {len(self.product_families)} product families")
             self.update_search_button_state()  # Update button state after loading
         else:
             self.status_label.setText("Failed to load initial data")
@@ -394,7 +395,6 @@ class NvidiaDriverLookupGUI(QMainWindow):
             self.product_combo.addItem("Select...", None)
             return
         
-        self.show_loading("Loading product series...")
         self.worker = APIWorker("menu", {"pt": str(family_id)})
         self.worker.finished.connect(self.on_series_data_loaded)
         self.worker.error.connect(self.on_api_error)
@@ -405,7 +405,6 @@ class NvidiaDriverLookupGUI(QMainWindow):
         if data and len(data) > 1 and data[1]:
             self.current_series = data[1]
             self.populate_combo(self.series_combo, self.current_series)
-            self.status_label.setText(f"Loaded {len(self.current_series)} product series")
         else:
             self.current_series = []
             self.series_combo.clear()
@@ -428,7 +427,6 @@ class NvidiaDriverLookupGUI(QMainWindow):
             self.update_search_button_state()  # Update button state
             return
         
-        self.show_loading("Loading products...")
         self.worker = APIWorker("menu", {"pt": str(family_id), "pst": str(series_id)})
         self.worker.finished.connect(self.on_products_data_loaded)
         self.worker.error.connect(self.on_api_error)
@@ -437,18 +435,15 @@ class NvidiaDriverLookupGUI(QMainWindow):
     def on_products_data_loaded(self, result):
         data = result["data"]
         if data and len(data) > 2:
-            # Update products
             if data[2]:
                 self.current_products = data[2]
                 self.populate_combo(self.product_combo, self.current_products)
-                self.status_label.setText(f"Loaded {len(self.current_products)} products")
             else:
                 self.current_products = []
                 self.product_combo.clear()
                 self.product_combo.addItem("No products available", None)
                 self.status_label.setText("No products found")
             
-            # Update OS options if available in response (index 4)
             if len(data) > 4 and data[4]:
                 self.os_options = data[4]
                 current_os = self.os_combo.currentData()
@@ -459,7 +454,6 @@ class NvidiaDriverLookupGUI(QMainWindow):
                         self.os_combo.setCurrentIndex(i)
                         break
             
-            # Update language options if available in response (index 5)
             if len(data) > 5 and data[5]:
                 self.language_options = data[5]
                 current_lang = self.language_combo.currentData()
@@ -475,7 +469,7 @@ class NvidiaDriverLookupGUI(QMainWindow):
             self.product_combo.addItem("No products available", None)
             self.status_label.setText("Failed to load products")
         
-        self.update_search_button_state()  # Update button state after loading products
+        self.update_search_button_state()
         self.hide_loading()
     
     def on_product_changed(self):
@@ -492,13 +486,11 @@ class NvidiaDriverLookupGUI(QMainWindow):
             QMessageBox.warning(self, "Warning", "Please select all options before searching")
             return
         
-        # Determine DCH value
         dch_1_oses = ["57", "135"]  # Windows 10 64-bit and Windows 11
-        dch_value = "1" if str(os_id) in dch_1_oses else "0"
         
         query_url = (
             f"https://gfwsl.geforce.com/services_toolkit/services/com/nvidia/services/AjaxDriverService.php?func=DriverManualLookup"
-            f"&pfid={product_id}&psid={series_id}&osID={os_id}&languageCode={lang_id}&dch={dch_value}&dltype=-1&numberOfResults={RESULTS}"
+            f"&pfid={product_id}&psid={series_id}&osID={os_id}&languageCode={lang_id}&dch={"1" if str(os_id) in dch_1_oses else "0"}&dltype=-1&numberOfResults={RESULTS}"
         )
         
         self.show_loading("Searching for drivers...")
@@ -532,12 +524,8 @@ class NvidiaDriverLookupGUI(QMainWindow):
     def on_drivers_loaded(self, result):
         data = result["data"]
         self.display_results(data)
-        
-        product_name = self.product_combo.currentText()
-        os_name = self.os_combo.currentText()
-        lang_name = self.language_combo.currentText()
-        
-        self.status_label.setText(f"Search completed for {product_name}")
+
+        self.show_loading("Drivers loaded")
         self.hide_loading()
     
     def display_results(self, data):
@@ -571,9 +559,8 @@ class NvidiaDriverLookupGUI(QMainWindow):
         QMessageBox.critical(self, "API Error", f"Failed to communicate with NVIDIA servers:\n{error_message}")
 
 def main() -> dict | None:
-    """Main function that returns selected driver data"""
     app = QApplication(sys.argv)
-    app.setStyle('Fusion')  # Use Fusion style for better cross-platform appearance
+    app.setStyle('Fusion')
     
     global FONT; FONT = app.font().family()
     
@@ -594,5 +581,8 @@ def main() -> dict | None:
     return selected_driver
 
 if __name__ == "__main__":
-    result = main()
-    print(result)
+    try:
+        result = main()
+        print(result)
+    except Exception as e:
+        print(f"An error occurred: {e}")
