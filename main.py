@@ -1,3 +1,6 @@
+# Version 1.0.1
+# Last Edited: 21 June 2025, 00:04 UTC
+
 import sys
 import requests
 import json
@@ -11,9 +14,9 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont
 
-RESULTS = "5"
+NUMBER_OF_RESULTS = "5"
 
-DIMENSIONS = (1280, 720)
+WINDOW_DIMENSIONS = (1280, 720)
 
 class DriverCard(QFrame):
     driver_selected = pyqtSignal(dict)
@@ -180,7 +183,7 @@ class NvidiaDriverLookupGUI(QMainWindow):
         super().__init__()
         self.setWindowTitle("NVIDIA Driver Lookup")
         # self.setGeometry(100, 100, 1400, 900)
-        self.setGeometry(100, 100, *DIMENSIONS)
+        self.setGeometry(100, 100, *WINDOW_DIMENSIONS)
         
         # Data storage
         self.product_families = []
@@ -490,7 +493,7 @@ class NvidiaDriverLookupGUI(QMainWindow):
         
         query_url = (
             f"https://gfwsl.geforce.com/services_toolkit/services/com/nvidia/services/AjaxDriverService.php?func=DriverManualLookup"
-            f"&pfid={product_id}&psid={series_id}&osID={os_id}&languageCode={lang_id}&dch={"1" if str(os_id) in dch_1_oses else "0"}&dltype=-1&numberOfResults={RESULTS}"
+            f"&pfid={product_id}&psid={series_id}&osID={os_id}&languageCode={lang_id}&dch={"1" if str(os_id) in dch_1_oses else "0"}&dltype=-1&numberOfResults={NUMBER_OF_RESULTS}"
         )
         
         self.show_loading("Searching for drivers...")
